@@ -1,100 +1,70 @@
-# Diffusion Pipeline — Text-to-Image Generation
+# Diffusion Pipeline
 
-Авторская реализация text-to-image диффузионного пайплайна на основе стохастических и обыкновенных дифференциальных уравнений.
+Курсовая работа по теме «Генерация изображения на основе диффузионных моделей нейросетей».
 
-Курсовая работа по теме "Модели нейронных сетей" (подтема: диффузионные модели).
+Предобученные компоненты SDXL (CLIP, VAE, U-Net) используются как строительные блоки, но весь диффузионный процесс — SDE, солвер, noise schedule — написан с нуля.
 
-## Архитектура
+## Требования
 
-Проект использует предобученные компоненты SDXL (CLIP, VAE, U-Net) как строительные блоки, но весь диффузионный процесс — SDE, солвер, scheduler — реализован самостоятельно.
-
-### Компоненты
-
-| Модуль | Описание |
-|--------|----------|
-| `src/sde/vp_sde.py` | VP-SDE — стохастическое дифференциальное уравнение прямого и обратного процесса |
-| `src/solvers/dpm_solver.py` | DPM-Solver++ — солвер 2-го порядка для диффузионных ODE (1 NFE/шаг) |
-| `src/schedulers/scaled_linear_scheduler.py` | Scaled Linear noise schedule (как в Stable Diffusion) |
-| `src/guidance/cfg.py` | Classifier-Free Guidance |
-| `src/pipeline/diffusion_pipeline.py` | Основной пайплайн, соединяющий все компоненты |
-| `src/models/` | Загрузка предобученных моделей SDXL (CLIP-L + OpenCLIP-G, VAE, U-Net) |
-| `src/math_core/` | Теоретические функции: верификация Фоккера-Планка, SNR, score estimation |
-| `src/utils/` | Утилиты: устройства (MPS/CUDA/CPU), сохранение изображений, seed |
-
-### Процесс генерации
-
-1. **Кодирование текста**: prompt → CLIP-L + OpenCLIP-G → эмбеддинги (2048-dim)
-2. **Инициализация**: x_T ~ N(0, I) в латентном пространстве (1, 4, 128, 128)
-3. **Обратный процесс**: DPM-Solver++ интегрирует reverse ODE от T к 0
-4. **Декодирование**: VAE decoder → изображение (1024×1024)
+- Python 3.10+
+- Node.js 18+ и npm (для десктопного приложения)
+- ~6.5 ГБ свободного места (модель SDXL скачается при первом запуске)
+- macOS с Apple Silicon (MPS) / NVIDIA GPU (CUDA) / CPU
 
 ## Установка
 
 ```bash
+# 1. Python-зависимости
 pip install -r requirements.txt
+
+# 2. Десктопное приложение (опционально)
+cd app
+npm install
 ```
 
-При первом запуске модель SDXL (~6.5 ГБ) будет загружена из HuggingFace.
+## Запуск
 
-## Использование
+### Десктопное приложение (Electron)
 
 ```bash
-# Базовая генерация
+cd app
+npm run dev
+```
+
+Откроется окно чата — после ввода промпта генерируется изображение с отображением промежуточных шагов.
+
+### Из терминала
+
+```bash
 python3 generate.py "a majestic lion in the savannah, golden hour lighting"
 
-# С заданным количеством шагов
-python3 generate.py "futuristic cityscape at night" --steps 50
-
-# Быстрая генерация (20 шагов)
-python3 generate.py "portrait of a wizard, fantasy art" --steps 20
-
-# С высоким guidance scale
-python3 generate.py "a white cat wearing sunglasses" --guidance 12.0
-
-# Воспроизводимый результат
-python3 generate.py "a red rose with morning dew" --seed 42
-
-# Сохранение промежуточных шагов
-python3 generate.py "mountain landscape" --save_intermediates --intermediates_interval 5
+# С параметрами
+python3 generate.py "futuristic cityscape at night" --steps 20 --guidance 9.0 --seed 42
 ```
 
 ### Параметры CLI
 
 | Параметр | По умолчанию | Описание |
 |----------|-------------|----------|
-| `prompt` | — | Текстовый промпт (обязательный) |
-| `--negative_prompt` | quality filter | Отрицательный промпт |
-| `--steps` | 30 | Количество шагов DPM-Solver++ |
+| `prompt` | — | Текстовый промпт |
+| `--steps` | 30 | Количество шагов |
 | `--guidance` | 7.5 | CFG guidance scale |
-| `--seed` | random | Seed для воспроизводимости |
-| `--width` | 1024 | Ширина изображения |
-| `--height` | 1024 | Высота изображения |
+| `--seed` | случайный | Seed для воспроизводимости |
+| `--width` / `--height` | 1024 | Размер изображения |
+| `--negative_prompt` | quality filter | Отрицательный промпт |
 | `--output` | ./output | Директория для результатов |
 | `--save_intermediates` | false | Сохранять промежуточные шаги |
-| `--intermediates_interval` | 5 | Интервал сохранения промежуточных шагов |
-| `--model` | stabilityai/sdxl-base-1.0 | HuggingFace model ID |
-| `--config` | config/default.yaml | Путь к конфигурации |
-| `--verbose` | false | Подробное логирование |
 
-## Математическая основа
+## Что реализовано вручную
 
-### VP-SDE (Variance Preserving SDE)
+Предобученные модели (CLIP-L, OpenCLIP-G, VAE, U-Net) загружаются из HuggingFace. Всё остальное написано с нуля:
 
-Прямой процесс:
-
-    dx = -0.5 * β(t) * x * dt + √β(t) * dw
-
-Маргинальное распределение: q(x_t | x_0) = N(sqrt(ᾱ(t)) * x_0, (1 - ᾱ(t)) * I)
-
-### DPM-Solver++ (Lu et al., 2022)
-
-Экспоненциальный интегратор для probability flow ODE. Работает в пространстве data prediction (x₀), мультишаговая экстраполяция для 2-го порядка при 1 вызове U-Net на шаг.
-
-Рекомендуемое количество шагов: 20–30.
-
-### Scaled Linear Schedule
-
-Линейная интерполяция в пространстве √β: β_min = 0.00085, β_max = 0.012 (параметры Stable Diffusion).
+- **VP-SDE** — прямой и обратный стохастические процессы, маргинальное распределение, конвертация noise↔score
+- **DPM-Solver++** — солвер 2-го порядка для probability flow ODE, 1 вызов нейросети на шаг
+- **Scaled Linear Schedule** — расписание шума (линейное в пространстве √β)
+- **Classifier-Free Guidance** — батчевый inference с условным и безусловным предсказаниями
+- **Математическое ядро** — численная верификация уравнения Фоккера-Планка, SNR, log-SNR, score estimation
+- **Пайплайн** — оркестрация всех компонентов, непрерывное время, конвертация в дискретные timesteps U-Net
 
 ## Тесты
 
@@ -102,54 +72,45 @@ python3 generate.py "mountain landscape" --save_intermediates --intermediates_in
 python3 -m pytest tests/ -v
 ```
 
-29 тестов: свойства scheduler (граничные условия, монотонность, дискретные значения), VP-SDE (drift, diffusion, маргинальное распределение, обратный процесс), DPM-Solver++ (порядок, временная сетка, dynamic thresholding, шаг солвера).
+29 тестов: scheduler (граничные условия, монотонность), VP-SDE (drift, diffusion, маргинальное распределение), DPM-Solver++ (порядок, временная сетка, dynamic thresholding).
 
 ## Структура проекта
 
 ```
-├── generate.py                  # CLI для генерации изображений
-├── config/default.yaml          # Конфигурация по умолчанию
+├── generate.py              # CLI-генерация
+├── bridge.py                # Мост Python↔Electron
+├── config/default.yaml      # Конфигурация
+├── app/                     # Десктопное приложение (Electron + React + TypeScript)
+│   ├── electron/            # Main process, preload
+│   └── src/                 # React-компоненты, стили, типы
 ├── src/
-│   ├── pipeline/
-│   │   └── diffusion_pipeline.py
-│   ├── sde/
-│   │   └── vp_sde.py
-│   ├── solvers/
-│   │   └── dpm_solver.py
-│   ├── schedulers/
-│   │   └── scaled_linear_scheduler.py
-│   ├── guidance/
-│   │   └── cfg.py
-│   ├── models/
-│   │   ├── model_config.py
-│   │   └── pretrained_loader.py
-│   ├── math_core/
-│   │   ├── fokker_planck.py
-│   │   ├── sde_theory.py
-│   │   └── score_estimation.py
-│   └── utils/
-│       ├── device.py
-│       ├── image_utils.py
-│       └── seed.py
-├── tests/
-│   ├── test_schedulers.py
-│   ├── test_sde.py
-│   └── test_solvers.py
+│   ├── pipeline/            # Основной пайплайн генерации
+│   ├── sde/                 # VP-SDE
+│   ├── solvers/             # DPM-Solver++
+│   ├── schedulers/          # Scaled Linear Schedule
+│   ├── guidance/            # Classifier-Free Guidance
+│   ├── models/              # Загрузка предобученных моделей
+│   ├── math_core/           # Фоккер-Планк, SNR, score estimation
+│   └── utils/               # Устройства, изображения, seed
+├── tests/                   # pytest-тесты
 └── requirements.txt
 ```
 
+## Математика
+
+**VP-SDE (прямой процесс):**
+
+    dx = -0.5 β(t) x dt + √β(t) dw
+    q(x_t | x_0) = N(√ᾱ(t) x_0, (1 - ᾱ(t)) I)
+
+**DPM-Solver++** — экспоненциальный интегратор для reverse ODE в параметризации x₀. Мультишаговая экстраполяция 2-го порядка. Рекомендуемое количество шагов: 20–30.
+
+**Scaled Linear Schedule** — β линейно в пространстве √β: β_min = 0.00085, β_max = 0.012.
+
 ## Платформа
 
-Оптимизирован для macOS (Apple M2 Pro, MPS backend). Также работает на CUDA и CPU.
+Оптимизировано для macOS (Apple Silicon, MPS backend). Также работает на CUDA и CPU.
 
-Ожидаемая производительность на M2 Pro:
-- SDXL 1024×1024, 20 шагов: ~40–60 секунд
-- SDXL 1024×1024, 30 шагов: ~60–90 секунд
-
-## Зависимости
-
-- PyTorch >= 2.0
-- Transformers >= 4.30 (текстовые энкодеры CLIP)
-- Diffusers >= 0.25 (загрузка предобученных моделей)
-- Accelerate >= 0.20
-- Pillow, PyYAML, tqdm, numpy
+Примерная скорость на M2 Pro:
+- 20 шагов: ~40–60 сек
+- 30 шагов: ~60–90 сек
