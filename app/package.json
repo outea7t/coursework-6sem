@@ -1,0 +1,25 @@
+{
+  "name": "diffusion-chat",
+  "version": "1.0.0",
+  "description": "Chat interface for Diffusion Pipeline",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "build": "vite build",
+    "start": "vite build && electron ."
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.0.0",
+    "electron": "^33.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.0"
+  }
+}
