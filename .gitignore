@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Pytest
+.pytest_cache/
+
+# Models (large pretrained weights, downloaded at runtime)
+models/
+*.safetensors
+*.bin
+*.ckpt
+*.pt
+*.pth
+
+# HuggingFace cache
+.cache/
+
+# Generated output images
+output/*.png
+output/*.jpg
+output/*.jpeg
+output/intermediates/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Claude Code
+CLAUDE.md
+.claude/

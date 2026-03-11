@@ -1,0 +1,19 @@
+model:
+  model_id: "stabilityai/stable-diffusion-xl-base-1.0"
+  device: "auto"  # auto-detect: mps (Mac) -> cuda (NVIDIA) -> cpu
+  dtype: "float16"  # float16 for MPS/CUDA, auto-fallback to float32 for problematic ops
+
+generation:
+  width: 1024
+  height: 1024
+  num_steps: 30
+  guidance_scale: 7.5
+  solver: "dpm_solver_pp"
+  scheduler: "scaled_linear"
+  negative_prompt: "low quality, blurry, distorted, ugly, bad anatomy"
+
+output:
+  directory: "./output"
+  format: "png"
+  save_intermediates: false  # save intermediate denoising steps
+  intermediates_interval: 5  # every N steps
