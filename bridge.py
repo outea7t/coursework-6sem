@@ -1,19 +1,6 @@
 #!/usr/bin/env python3
-"""
-Bridge между Electron-приложением и диффузионным пайплайном.
-
-Протокол: JSON lines через stdin/stdout.
-
-Stdin (команды от Electron):
-    {"type": "generate", "prompt": "...", "steps": 30, ...}
-
-Stdout (события для Electron):
-    {"type": "ready"}
-    {"type": "generation_started", "total_steps": 30}
-    {"type": "step", "step": 5, "total": 30, "image": "/path/to/step.png"}
-    {"type": "generation_done", "image": "/path/to/final.png", "elapsed": 42.1}
-    {"type": "error", "message": "..."}
-"""
+# мост между electron и диффузионным пайплайном
+# протокол: json lines через stdin/stdout
 
 import json
 import logging
@@ -23,14 +10,11 @@ import tempfile
 import time
 import traceback
 
-# Allow MPS to use all available memory
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
-# Project root = directory containing this file
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Redirect all logging to stderr so stdout stays clean for JSON
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -41,13 +25,11 @@ logger = logging.getLogger("bridge")
 
 
 def send(data: dict) -> None:
-    """Send a JSON message to Electron via stdout."""
     sys.stdout.write(json.dumps(data, ensure_ascii=False) + "\n")
     sys.stdout.flush()
 
 
 class LoadingProgressHandler(logging.Handler):
-    """Intercept model loading logs and send progress events."""
 
     STAGES = {
         "Loading CLIP-L": (10, "Загрузка CLIP-L..."),
@@ -78,7 +60,6 @@ def main() -> None:
         from src.utils.device import randn_tensor
         from src.utils.seed import set_seed, get_generator
 
-        # Attach progress handler to model loader
         progress_handler = LoadingProgressHandler()
         logging.getLogger("src.models.pretrained_loader").addHandler(progress_handler)
 
@@ -120,7 +101,6 @@ def main() -> None:
                 width = int(cmd.get("width", 1024))
                 height = int(cmd.get("height", 1024))
 
-                # Update solver/cfg if params changed
                 if steps != pipeline.num_steps:
                     pipeline.solver = DPMSolverPP(pipeline.sde, steps)
                     pipeline.num_steps = steps
@@ -137,27 +117,23 @@ def main() -> None:
                         set_seed(seed)
                     generator = get_generator(seed, pipeline.device)
 
-                    # Encode text
                     cond_embeds, cond_pooled = pipeline.models.encode_prompt(prompt)
                     uncond_embeds, uncond_pooled = pipeline.models.encode_prompt(
                         negative_prompt
                     )
                     time_ids = pipeline._build_time_ids(height, width)
 
-                    # Initial noise
                     latent_shape = pipeline.model_config.get_latent_shape(height, width)
                     latents = randn_tensor(
                         latent_shape, pipeline.device, torch.float32, generator
                     )
 
-                    # Setup solver
                     pipeline._setup_solver(
                         cond_embeds, uncond_embeds, cond_pooled, uncond_pooled, time_ids
                     )
                     timesteps = pipeline.solver.timesteps
 
                     total = len(timesteps) - 1
-                    # Only 3 intermediate VAE decodes: ~33%, ~66%, last step
                     preview_at = set()
                     if total >= 3:
                         preview_at = {total // 3, 2 * total // 3, total - 1}
@@ -185,7 +161,6 @@ def main() -> None:
                             latents.float(), t, t_prev, noise_pred.float()
                         )
 
-                        # Send progress every step (lightweight, no image)
                         step_num = i + 1
                         msg = {
                             "type": "progress",
@@ -193,12 +168,10 @@ def main() -> None:
                             "total": total,
                         }
 
-                        # Decode preview at selected steps only
                         if step_num in preview_at:
                             if is_mps:
                                 torch.mps.empty_cache()
                             img = pipeline._decode_and_postprocess(latents)
-                            # Save as small JPEG thumbnail (~20KB vs ~4MB PNG)
                             thumb = img.resize((256, 256), Image.LANCZOS)
                             img_path = os.path.join(
                                 tmp_dir, f"step_{step_num:04d}.jpg"
@@ -211,7 +184,6 @@ def main() -> None:
 
                         send(msg)
 
-                    # Final image — full quality PNG
                     if is_mps:
                         torch.mps.empty_cache()
                     final_img = pipeline._decode_and_postprocess(latents)

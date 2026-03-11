@@ -22,7 +22,8 @@ env/
 *~
 .DS_Store
 
-# Pytest
+# Tests
+tests/
 .pytest_cache/
 
 # Models (large pretrained weights, downloaded at runtime)
@@ -51,6 +52,15 @@ output/intermediates/
 # Environment variables
 .env
 .env.local
+
+# Electron app build artifacts
+app/node_modules/
+app/dist/
+app/.vite/
+
+# Debug/verify scripts
+debug_*.py
+verify_*.py
 
 # Claude Code
 CLAUDE.md
