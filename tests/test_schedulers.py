@@ -110,11 +110,13 @@ class TestLinearScheduler:
         assert s.beta_max == 0.02
 
     def test_beta_linearity(self):
-        """beta(t) должно быть линейным."""
+        """beta(t) должно быть линейным (N-scaled для непрерывного SDE)."""
         s = LinearScheduler(beta_min=0.1, beta_max=1.0)
         t = torch.tensor([0.0, 0.5, 1.0])
         betas = s.beta(t)
-        assert torch.allclose(betas, torch.tensor([0.1, 0.55, 1.0]))
+        # beta(t) = N * (beta_min + t*(beta_max - beta_min)), N=1000
+        expected = s.num_train_timesteps * torch.tensor([0.1, 0.55, 1.0])
+        assert torch.allclose(betas, expected)
 
 
 class TestCosineScheduler:

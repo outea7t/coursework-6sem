@@ -358,7 +358,7 @@ class DiffusionPipeline:
             Дискретный timestep для U-Net.
         """
         num_timesteps = self.model_config.num_train_timesteps
-        discrete = (t * (num_timesteps - 1)).long().clamp(0, num_timesteps - 1)
+        discrete = (t * (num_timesteps - 1)).round().long().clamp(0, num_timesteps - 1)
         return discrete.to(self.device)
 
     def _decode_and_postprocess(self, latents: Tensor) -> Image.Image:

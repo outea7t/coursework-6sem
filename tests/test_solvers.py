@@ -189,9 +189,9 @@ class TestDPMSolverPP:
     def test_reset_clears_history(self, sde):
         """reset() должен очистить историю."""
         solver = DPMSolverPP(sde, 10)
-        solver._noise_history.append(torch.randn(1, 4, 8, 8))
+        solver._x0_history.append(torch.randn(1, 4, 8, 8))
         solver.reset()
-        assert len(solver._noise_history) == 0
+        assert len(solver._x0_history) == 0
 
     def test_dynamic_threshold(self, sde):
         """Dynamic thresholding должен ограничивать значения."""
