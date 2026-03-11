@@ -32,11 +32,11 @@
 import torch
 from torch import Tensor
 
-from ..schedulers.base_scheduler import BaseScheduler
+from ..schedulers.scaled_linear_scheduler import ScaledLinearScheduler
 
 
 def transition_kernel_params(
-    scheduler: BaseScheduler, t: Tensor
+    scheduler: ScaledLinearScheduler, t: Tensor
 ) -> tuple[Tensor, Tensor]:
     """Параметры переходного ядра q(x_t | x_0) для VP-SDE.
 
@@ -57,7 +57,7 @@ def transition_kernel_params(
     return mean_coeff, variance
 
 
-def signal_to_noise_ratio(scheduler: BaseScheduler, t: Tensor) -> Tensor:
+def signal_to_noise_ratio(scheduler: ScaledLinearScheduler, t: Tensor) -> Tensor:
     """Signal-to-Noise Ratio (SNR).
 
     SNR(t) = alpha_bar(t) / (1 - alpha_bar(t))
@@ -80,7 +80,7 @@ def signal_to_noise_ratio(scheduler: BaseScheduler, t: Tensor) -> Tensor:
     return ab / (1.0 - ab).clamp(min=1e-8)
 
 
-def log_signal_to_noise_ratio(scheduler: BaseScheduler, t: Tensor) -> Tensor:
+def log_signal_to_noise_ratio(scheduler: ScaledLinearScheduler, t: Tensor) -> Tensor:
     """Логарифм Signal-to-Noise Ratio.
 
     lambda(t) = log(SNR(t)) = log(alpha_bar(t)) - log(1 - alpha_bar(t))
@@ -127,7 +127,7 @@ def discrete_to_continuous_beta(
 
 
 def noise_level_at_timestep(
-    scheduler: BaseScheduler, t: Tensor
+    scheduler: ScaledLinearScheduler, t: Tensor
 ) -> dict[str, Tensor]:
     """Полная информация об уровне шума в момент t.
 
@@ -156,7 +156,7 @@ def noise_level_at_timestep(
 
 
 def optimal_timestep_spacing(
-    scheduler: BaseScheduler,
+    scheduler: ScaledLinearScheduler,
     num_steps: int,
     spacing: str = "uniform",
 ) -> Tensor:

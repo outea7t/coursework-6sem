@@ -23,38 +23,6 @@ Variance Preserving SDE (VP-SDE).
 
         q(x_t | x_0) = N(x_t; sqrt(alpha_bar(t)) * x_0, (1 - alpha_bar(t)) * I)
 
-    Вывод:
-        Решение линейного SDE dx = a(t)*x*dt + b(t)*dw:
-            x_t = exp(A(t)) * x_0 + integral_0^t exp(A(t)-A(s)) * b(s) dw_s
-
-        где A(t) = integral_0^t a(s) ds.
-
-        Для VP-SDE: a(t) = -0.5*beta(t), b(t) = sqrt(beta(t))
-
-        A(t) = -0.5 * integral_0^t beta(s) ds
-
-        Среднее:
-            E[x_t | x_0] = exp(A(t)) * x_0
-                         = exp(-0.5 * integral_0^t beta(s) ds) * x_0
-                         = sqrt(alpha_bar(t)) * x_0
-
-            так как alpha_bar(t) = exp(-integral_0^t beta(s) ds)
-
-        Дисперсия (по формуле Ито для стохастического интеграла):
-            Var[x_t | x_0] = integral_0^t exp(2*(A(t)-A(s))) * b(s)^2 ds
-                           = integral_0^t exp(-integral_s^t beta(u) du) * beta(s) ds
-
-        Можно показать, что Var[x_t | x_0] = 1 - alpha_bar(t).
-
-        Доказательство:
-            Пусть phi(t) = integral_0^t beta(s) ds, тогда alpha_bar(t) = exp(-phi(t))
-
-            Var = integral_0^t exp(-(phi(t) - phi(s))) * phi'(s) ds
-                = exp(-phi(t)) * integral_0^t exp(phi(s)) * phi'(s) ds
-                = exp(-phi(t)) * [exp(phi(t)) - exp(phi(0))]
-                = 1 - exp(-phi(t))
-                = 1 - alpha_bar(t)  ∎
-
 Обратное SDE:
 =============
 
@@ -85,11 +53,10 @@ from typing import Tuple
 import torch
 from torch import Tensor
 
-from .base_sde import BaseSDE
-from ..schedulers.base_scheduler import BaseScheduler
+from ..schedulers.scaled_linear_scheduler import ScaledLinearScheduler
 
 
-class VPSDE(BaseSDE):
+class VPSDE:
     """Variance Preserving SDE.
 
     dx = -0.5 * beta(t) * x * dt + sqrt(beta(t)) * dw
@@ -102,17 +69,16 @@ class VPSDE(BaseSDE):
 
     def __init__(
         self,
-        scheduler: BaseScheduler,
+        scheduler: ScaledLinearScheduler,
         t_min: float = 1e-3,
         t_max: float = 1.0,
     ) -> None:
-        super().__init__(scheduler=scheduler, t_min=t_min, t_max=t_max)
+        self.scheduler = scheduler
+        self.t_min = t_min
+        self.t_max = t_max
 
     def drift(self, x: Tensor, t: Tensor) -> Tensor:
         """Коэффициент сноса VP-SDE: f(x, t) = -0.5 * beta(t) * x.
-
-        Линейный drift по x — характерная черта VP-SDE,
-        которая обеспечивает гауссовость маргинального распределения.
 
         Args:
             x: Текущее состояние, (batch, C, H, W).
@@ -122,15 +88,12 @@ class VPSDE(BaseSDE):
             f(x, t) = -0.5 * beta(t) * x.
         """
         beta_t = self.scheduler.beta(t)
-        # Reshape beta_t для broadcasting с x (batch, C, H, W)
         while beta_t.dim() < x.dim():
             beta_t = beta_t.unsqueeze(-1)
         return -0.5 * beta_t * x
 
     def diffusion(self, t: Tensor) -> Tensor:
         """Коэффициент диффузии VP-SDE: g(t) = sqrt(beta(t)).
-
-        Определяет интенсивность добавляемого шума на каждом шаге.
 
         Args:
             t: Время, скаляр или (batch,).
@@ -145,9 +108,6 @@ class VPSDE(BaseSDE):
 
         q(x_t | x_0) = N(x_t; sqrt(alpha_bar(t)) * x_0, (1 - alpha_bar(t)) * I)
 
-        Это позволяет сэмплировать x_t за один шаг:
-            x_t = sqrt(alpha_bar(t)) * x_0 + sqrt(1 - alpha_bar(t)) * epsilon
-
         Args:
             x_0: Исходные данные, (batch, C, H, W).
             t: Время, скаляр или (batch,).
@@ -156,7 +116,6 @@ class VPSDE(BaseSDE):
             (mean, std): mean = sqrt(alpha_bar(t)) * x_0, std = sqrt(1 - alpha_bar(t)).
         """
         alpha_bar_t = self.scheduler.alpha_bar(t).clamp(min=1e-8)
-        # Reshape для broadcasting
         while alpha_bar_t.dim() < x_0.dim():
             alpha_bar_t = alpha_bar_t.unsqueeze(-1)
 
@@ -164,11 +123,26 @@ class VPSDE(BaseSDE):
         std = torch.sqrt(1.0 - alpha_bar_t)
         return mean, std
 
+    def marginal_params_at_t(self, t: Tensor) -> Tuple[Tensor, Tensor]:
+        """Коэффициенты маргинального распределения (без x_0).
+
+        Возвращает (sqrt(alpha_bar(t)), sqrt(1 - alpha_bar(t))),
+        т.е. коэффициенты в формуле x_t = mean_coeff * x_0 + std * eps.
+
+        Args:
+            t: Время.
+
+        Returns:
+            (mean_coeff, std): коэффициенты маргинала.
+        """
+        ab = self.scheduler.alpha_bar(t)
+        ab = ab.clamp(min=1e-8)
+        mean_coeff = torch.sqrt(ab)
+        std = torch.sqrt(1.0 - ab)
+        return mean_coeff, std
+
     def prior_sampling(self, shape: Tuple[int, ...], device: str = "cpu") -> Tensor:
         """Сэмплирование из предельного распределения p_T = N(0, I).
-
-        Для VP-SDE при t = T (достаточно большом):
-            alpha_bar(T) -> 0, поэтому q(x_T) ≈ N(0, I)
 
         Args:
             shape: Форма тензора.
@@ -179,19 +153,48 @@ class VPSDE(BaseSDE):
         """
         return torch.randn(shape, device=device)
 
+    def reverse_drift(self, x: Tensor, t: Tensor, score: Tensor) -> Tensor:
+        """Drift обратного SDE (уравнение Андерсона).
+
+        f_reverse(x, t) = f(x, t) - g(t)^2 * score(x, t)
+
+        Args:
+            x: Текущее состояние.
+            t: Текущее время.
+            score: Оценка score function nabla_x log p_t(x).
+
+        Returns:
+            Drift обратного SDE.
+        """
+        f = self.drift(x, t)
+        g = self.diffusion(t)
+        while g.dim() < x.dim():
+            g = g.unsqueeze(-1)
+        return f - g ** 2 * score
+
+    def reverse_ode_drift(self, x: Tensor, t: Tensor, score: Tensor) -> Tensor:
+        """Drift probability flow ODE.
+
+        f_ode(x, t) = f(x, t) - 0.5 * g(t)^2 * score(x, t)
+
+        Args:
+            x: Текущее состояние.
+            t: Текущее время.
+            score: Оценка score function.
+
+        Returns:
+            Drift probability flow ODE.
+        """
+        f = self.drift(x, t)
+        g = self.diffusion(t)
+        while g.dim() < x.dim():
+            g = g.unsqueeze(-1)
+        return f - 0.5 * g ** 2 * score
+
     def noise_to_score(self, noise: Tensor, t: Tensor) -> Tensor:
         """Конвертация предсказания шума в score function.
 
-        Связь между noise prediction epsilon и score:
-            score(x, t) = -epsilon / sigma(t)
-
-        Вывод:
-            Из q(x_t | x_0) = N(mean_t, sigma_t^2 I):
-            nabla_x log q(x_t | x_0) = -(x_t - mean_t) / sigma_t^2
-                                       = -epsilon / sigma_t
-
-            так как x_t = mean_t + sigma_t * epsilon,
-            следовательно epsilon = (x_t - mean_t) / sigma_t
+        score(x, t) = -epsilon / sigma(t)
 
         Args:
             noise: Предсказанный шум epsilon, (batch, C, H, W).

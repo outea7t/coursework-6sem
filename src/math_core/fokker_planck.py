@@ -40,11 +40,11 @@ p(x, t) для процесса, определяемого SDE. Этот мод
 import torch
 from torch import Tensor
 
-from ..schedulers.base_scheduler import BaseScheduler
+from ..schedulers.scaled_linear_scheduler import ScaledLinearScheduler
 
 
 def solve_fokker_planck_1d(
-    scheduler: BaseScheduler,
+    scheduler: ScaledLinearScheduler,
     x_0: float = 0.0,
     x_range: tuple[float, float] = (-5.0, 5.0),
     nx: int = 500,
@@ -128,7 +128,7 @@ def solve_fokker_planck_1d(
 
 
 def analytical_gaussian_1d(
-    scheduler: BaseScheduler,
+    scheduler: ScaledLinearScheduler,
     x_0: float,
     x_grid: Tensor,
     t: float,
@@ -163,7 +163,7 @@ def analytical_gaussian_1d(
 
 
 def verify_fokker_planck(
-    scheduler: BaseScheduler,
+    scheduler: ScaledLinearScheduler,
     x_0: float = 0.0,
     check_times: list[float] | None = None,
     nx: int = 500,

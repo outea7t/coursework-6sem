@@ -7,10 +7,9 @@
 
 Примеры использования:
     python generate.py "a beautiful sunset over the ocean"
-    python generate.py "a cat sitting on a windowsill" --steps 50 --solver dpm_solver_pp --guidance 9.0
-    python generate.py "cyberpunk city at night" --solver runge_kutta --steps 100 --seed 42
-    python generate.py "portrait of a wizard, fantasy art" --solver dpm_solver_pp --steps 20
-    python generate.py "mountain landscape, photorealistic" --solver adaptive
+    python generate.py "a cat sitting on a windowsill" --steps 50 --guidance 9.0
+    python generate.py "cyberpunk city at night" --steps 30 --seed 42
+    python generate.py "portrait of a wizard, fantasy art" --steps 20
 
 Каждый вызов:
     1. Выводит информацию о параметрах (solver, steps, guidance, seed)
@@ -42,9 +41,8 @@ def main() -> None:
         epilog="""
 Examples:
   python generate.py "a majestic lion in the savannah, golden hour lighting"
-  python generate.py "futuristic cityscape at night" --solver runge_kutta --steps 50
-  python generate.py "a red rose with morning dew" --solver euler_maruyama --steps 50 --seed 42
-  python generate.py "portrait of a wizard" --solver dpm_solver_pp --steps 20 --guidance 9.0
+  python generate.py "futuristic cityscape at night" --steps 30 --seed 42
+  python generate.py "portrait of a wizard" --steps 20 --guidance 9.0
         """,
     )
 
@@ -59,27 +57,6 @@ Examples:
     )
     parser.add_argument(
         "--steps", type=int, default=30, help="Number of diffusion steps (default: 30)"
-    )
-    parser.add_argument(
-        "--solver",
-        type=str,
-        default="dpm_solver_pp",
-        choices=[
-            "euler_maruyama",
-            "euler_ode",
-            "runge_kutta",
-            "heun",
-            "dpm_solver_pp",
-            "adaptive",
-        ],
-        help="Numerical solver for reverse SDE/ODE (default: dpm_solver_pp)",
-    )
-    parser.add_argument(
-        "--scheduler",
-        type=str,
-        default="scaled_linear",
-        choices=["linear", "cosine", "scaled_linear", "continuous"],
-        help="Noise schedule (default: scaled_linear)",
     )
     parser.add_argument(
         "--guidance",
@@ -145,8 +122,7 @@ Examples:
     print("=" * 60)
     print(f"  Prompt:    {args.prompt}")
     print(f"  Negative:  {args.negative_prompt}")
-    print(f"  Solver:    {args.solver}")
-    print(f"  Scheduler: {args.scheduler}")
+    print(f"  Solver:    DPM-Solver++ (2nd order)")
     print(f"  Steps:     {args.steps}")
     print(f"  Guidance:  {args.guidance}")
     print(f"  Size:      {args.width}x{args.height}")
@@ -170,8 +146,6 @@ Examples:
         model_id=args.model,
         device="auto",
         dtype="float16",
-        scheduler_name=args.scheduler,
-        solver_name=args.solver,
         num_steps=args.steps,
         guidance_scale=args.guidance,
     )
@@ -195,7 +169,7 @@ Examples:
         image=image,
         output_dir=args.output,
         prompt=args.prompt,
-        solver=args.solver,
+        solver="dpm_solver_pp",
         steps=args.steps,
         seed=args.seed,
     )
@@ -215,7 +189,7 @@ Examples:
     print("Generation Complete!")
     print(f"  Output:    {filepath}")
     print(f"  Time:      {elapsed:.1f}s")
-    print(f"  Solver:    {args.solver} ({args.steps} steps)")
+    print(f"  Solver:    DPM-Solver++ ({args.steps} steps)")
     if hasattr(pipeline.solver, 'total_nfe'):
         print(f"  Total NFE: {pipeline.solver.total_nfe}")
     print("=" * 60)

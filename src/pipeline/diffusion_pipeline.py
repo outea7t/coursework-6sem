@@ -37,21 +37,9 @@ from tqdm import tqdm
 
 from ..models.pretrained_loader import PretrainedModels
 from ..models.model_config import ModelConfig
-from ..sde import VPSDE, VESDE, SubVPSDE
-from ..solvers import (
-    EulerMaruyamaSolver,
-    EulerODESolver,
-    HeunSolver,
-    RungeKutta4Solver,
-    DPMSolverPP,
-    AdaptiveRK45Solver,
-)
-from ..schedulers import (
-    LinearScheduler,
-    CosineScheduler,
-    ScaledLinearScheduler,
-    ContinuousScheduler,
-)
+from ..sde import VPSDE
+from ..solvers import DPMSolverPP
+from ..schedulers import ScaledLinearScheduler
 from ..guidance.cfg import ClassifierFreeGuidance
 from ..utils.device import get_device, get_dtype, randn_tensor
 from ..utils.seed import set_seed, get_generator
@@ -60,32 +48,14 @@ from ..utils.image_utils import tensor_to_pil, save_image
 logger = logging.getLogger(__name__)
 
 
-def _get_scheduler(name: str):
-    """Создаёт scheduler по имени."""
-    schedulers = {
-        "linear": lambda: LinearScheduler(),
-        "cosine": lambda: CosineScheduler(),
-        "scaled_linear": lambda: ScaledLinearScheduler(),
-        "continuous": lambda: ContinuousScheduler(),
-    }
-    if name not in schedulers:
-        raise ValueError(f"Unknown scheduler: {name}. Available: {list(schedulers.keys())}")
-    return schedulers[name]()
+def _create_scheduler():
+    """Создаёт noise scheduler (Scaled Linear, как в Stable Diffusion)."""
+    return ScaledLinearScheduler()
 
 
-def _get_solver(name: str, sde, num_steps: int):
-    """Создаёт solver по имени."""
-    solvers = {
-        "euler_maruyama": lambda: EulerMaruyamaSolver(sde, num_steps),
-        "euler_ode": lambda: EulerODESolver(sde, num_steps),
-        "heun": lambda: HeunSolver(sde, num_steps),
-        "runge_kutta": lambda: RungeKutta4Solver(sde, num_steps),
-        "dpm_solver_pp": lambda: DPMSolverPP(sde, num_steps),
-        "adaptive": lambda: AdaptiveRK45Solver(sde, num_steps),
-    }
-    if name not in solvers:
-        raise ValueError(f"Unknown solver: {name}. Available: {list(solvers.keys())}")
-    return solvers[name]()
+def _create_solver(sde, num_steps: int):
+    """Создаёт DPM-Solver++ солвер."""
+    return DPMSolverPP(sde, num_steps)
 
 
 class DiffusionPipeline:
@@ -106,28 +76,25 @@ class DiffusionPipeline:
         model_id: str = "stabilityai/stable-diffusion-xl-base-1.0",
         device: str = "auto",
         dtype: str = "float16",
-        scheduler_name: str = "scaled_linear",
-        solver_name: str = "dpm_solver_pp",
         num_steps: int = 30,
         guidance_scale: float = 7.5,
     ) -> None:
         self.device = get_device(device)
         self.dtype = get_dtype(self.device) if dtype == "float16" else torch.float32
         self.num_steps = num_steps
-        self.solver_name = solver_name
 
         # Загрузка предобученных моделей
         logger.info(f"Device: {self.device}, dtype: {self.dtype}")
         self.models = PretrainedModels(model_id, self.device, self.dtype)
 
-        # Noise scheduler
-        self.scheduler = _get_scheduler(scheduler_name)
+        # Noise scheduler (Scaled Linear — Stable Diffusion)
+        self.scheduler = _create_scheduler()
 
-        # SDE (VP-SDE — основное для Stable Diffusion)
+        # VP-SDE — основное для Stable Diffusion
         self.sde = VPSDE(scheduler=self.scheduler)
 
-        # Solver
-        self.solver = _get_solver(solver_name, self.sde, num_steps)
+        # DPM-Solver++ — 2-го порядка, 1 NFE/шаг
+        self.solver = _create_solver(self.sde, num_steps)
 
         # Classifier-Free Guidance
         self.cfg = ClassifierFreeGuidance(guidance_scale)
@@ -136,9 +103,8 @@ class DiffusionPipeline:
         self.model_config = ModelConfig(model_id=model_id)
 
         logger.info(
-            f"Pipeline initialized: solver={solver_name}, "
-            f"scheduler={scheduler_name}, steps={num_steps}, "
-            f"guidance_scale={guidance_scale}"
+            f"Pipeline initialized: DPM-Solver++, "
+            f"steps={num_steps}, guidance_scale={guidance_scale}"
         )
 
     @torch.no_grad()

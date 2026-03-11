@@ -34,15 +34,12 @@ DPM-Solver++ — State-of-the-art солвер для диффузионных O
 import torch
 from torch import Tensor
 
-from .base_solver import BaseSolver
-from ..sde.base_sde import BaseSDE
 
-
-class DPMSolverPP(BaseSolver):
+class DPMSolverPP:
     """DPM-Solver++ солвер.
 
     Args:
-        sde: SDE модель.
+        sde: SDE модель (VPSDE).
         num_steps: Количество шагов.
         solver_order: Порядок солвера (1 или 2).
         thresholding: Применять dynamic thresholding для стабильности.
@@ -51,12 +48,14 @@ class DPMSolverPP(BaseSolver):
 
     def __init__(
         self,
-        sde: BaseSDE,
+        sde,
         num_steps: int = 20,
         solver_order: int = 2,
         thresholding: bool = False,
         dynamic_threshold_ratio: float = 0.995,
     ) -> None:
+        self.sde = sde
+        self.num_steps = num_steps
         self.solver_order = solver_order
         self.thresholding = thresholding
         self.dynamic_threshold_ratio = dynamic_threshold_ratio
@@ -77,8 +76,8 @@ class DPMSolverPP(BaseSolver):
         self._x0_history: list[Tensor] = []
         self._lambda_history: list[Tensor] = []
 
-        # Call super: sets self.sde, self.num_steps, calls _build_timesteps()
-        super().__init__(sde=sde, num_steps=num_steps)
+        # Build timestep grid
+        self.timesteps = self._build_timesteps()
 
     def _build_timesteps(self) -> torch.Tensor:
         """Временная сетка, равномерная в пространстве дискретных timesteps.
@@ -120,9 +119,7 @@ class DPMSolverPP(BaseSolver):
         """
         if self._use_discrete:
             N = self.sde.scheduler.num_train_timesteps
-            # Round to nearest discrete index (not floor!)
             idx = (t * (N - 1)).round().long().clamp(0, N - 1)
-            # CPU index for CPU arrays, then move result to device
             idx_cpu = idx.cpu() if idx.is_cuda or str(idx.device).startswith('mps') else idx
             alpha = self._alpha_arr[idx_cpu].to(device)
             sigma = self._sigma_arr[idx_cpu].to(device)
@@ -168,7 +165,6 @@ class DPMSolverPP(BaseSolver):
         sigma_prev = sigma_prev.reshape([1] * ndim)
 
         # Convert epsilon prediction → x0 prediction
-        # x_t = alpha_t * x_0 + sigma_t * eps  →  x_0 = (x_t - sigma_t * eps) / alpha_t
         x0_pred = (x - sigma_t * model_output) / alpha_t.clamp(min=1e-8)
 
         if self.thresholding:
@@ -239,15 +235,11 @@ class DPMSolverPP(BaseSolver):
         D0 = x0_pred
         D0_prev = self._x0_history[-2]
 
-        # Lambda values for step ratio
-        lam_s0 = self._lambda_history[-1]  # current source
-        lam_s1 = self._lambda_history[-2]  # previous source
-        h_0 = lam_s0 - lam_s1  # > 0
+        lam_s0 = self._lambda_history[-1]
+        lam_s1 = self._lambda_history[-2]
+        h_0 = lam_s0 - lam_s1
 
-        # Step ratio r = h_0 / h (diffusers convention)
         r = h_0 / h
-
-        # Second-order correction
         D1 = (1.0 / r) * (D0 - D0_prev)
 
         exp_neg_h = torch.exp(-h)
@@ -260,12 +252,7 @@ class DPMSolverPP(BaseSolver):
         return x_out
 
     def _dynamic_threshold(self, x0_pred: Tensor) -> Tensor:
-        """Dynamic thresholding для стабильности при высоком CFG.
-
-        При больших guidance scale (>10) предсказание x_0 может выходить
-        за допустимые пределы. Dynamic thresholding масштабирует значения,
-        чтобы квантиль не превышал 1.
-        """
+        """Dynamic thresholding для стабильности при высоком CFG."""
         batch_size = x0_pred.shape[0]
         x0_flat = x0_pred.reshape(batch_size, -1)
 
