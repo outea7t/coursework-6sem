@@ -12,7 +12,7 @@ from tqdm import tqdm
 from ..models.pretrained_loader import PretrainedModels
 from ..models.model_config import ModelConfig
 from ..sde import VPSDE
-from ..solvers import DPMSolverPP
+from ..solvers import EulerODESolver
 from ..schedulers import ScaledLinearScheduler
 from ..guidance.cfg import ClassifierFreeGuidance
 from ..utils.device import get_device, get_dtype, randn_tensor
@@ -27,7 +27,7 @@ def _create_scheduler():
 
 
 def _create_solver(sde, num_steps: int):
-    return DPMSolverPP(sde, num_steps)
+    return EulerODESolver(sde, num_steps)
 
 
 class DiffusionPipeline:
@@ -54,7 +54,7 @@ class DiffusionPipeline:
         self.model_config = ModelConfig(model_id=model_id)
 
         logger.info(
-            f"Pipeline initialized: DPM-Solver++, "
+            f"Pipeline initialized: Euler ODE, "
             f"steps={num_steps}, guidance_scale={guidance_scale}"
         )
 

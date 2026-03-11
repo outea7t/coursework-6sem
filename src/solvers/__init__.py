@@ -1,5 +1,5 @@
-from .dpm_solver import DPMSolverPP
+from .euler_solver import EulerODESolver
 
 __all__ = [
-    "DPMSolverPP",
+    "EulerODESolver",
 ]

@@ -58,7 +58,7 @@ Examples:
     print("=" * 60)
     print(f"  Prompt:    {args.prompt}")
     print(f"  Negative:  {args.negative_prompt}")
-    print(f"  Solver:    DPM-Solver++ (2nd order)")
+    print(f"  Solver:    Euler ODE (1st order)")
     print(f"  Steps:     {args.steps}")
     print(f"  Guidance:  {args.guidance}")
     print(f"  Size:      {args.width}x{args.height}")
@@ -101,7 +101,7 @@ Examples:
         image=image,
         output_dir=args.output,
         prompt=args.prompt,
-        solver="dpm_solver_pp",
+        solver="euler_ode",
         steps=args.steps,
         seed=args.seed,
     )
@@ -120,7 +120,7 @@ Examples:
     print("Generation Complete!")
     print(f"  Output:    {filepath}")
     print(f"  Time:      {elapsed:.1f}s")
-    print(f"  Solver:    DPM-Solver++ ({args.steps} steps)")
+    print(f"  Solver:    Euler ODE ({args.steps} steps)")
     if hasattr(pipeline.solver, 'total_nfe'):
         print(f"  Total NFE: {pipeline.solver.total_nfe}")
     print("=" * 60)

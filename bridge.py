@@ -55,7 +55,7 @@ def main() -> None:
         torch.set_grad_enabled(False)
         from PIL import Image
         from src.pipeline.diffusion_pipeline import DiffusionPipeline
-        from src.solvers import DPMSolverPP
+        from src.solvers import EulerODESolver
         from src.guidance.cfg import ClassifierFreeGuidance
         from src.utils.device import randn_tensor
         from src.utils.seed import set_seed, get_generator
@@ -102,7 +102,7 @@ def main() -> None:
                 height = int(cmd.get("height", 1024))
 
                 if steps != pipeline.num_steps:
-                    pipeline.solver = DPMSolverPP(pipeline.sde, steps)
+                    pipeline.solver = EulerODESolver(pipeline.sde, steps)
                     pipeline.num_steps = steps
                 if guidance != pipeline.cfg.guidance_scale:
                     pipeline.cfg = ClassifierFreeGuidance(guidance)

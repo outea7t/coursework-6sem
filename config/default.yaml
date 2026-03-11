@@ -8,7 +8,7 @@ generation:
   height: 1024
   num_steps: 30
   guidance_scale: 7.5
-  solver: "dpm_solver_pp"
+  solver: "euler_ode"
   scheduler: "scaled_linear"
   negative_prompt: "low quality, blurry, distorted, ugly, bad anatomy"
 
