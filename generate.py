@@ -6,17 +6,9 @@ import logging
 import os
 import time
 
-import yaml
-
-
-def load_config(config_path: str = "config/default.yaml") -> dict:
-    if os.path.exists(config_path):
-        with open(config_path) as f:
-            return yaml.safe_load(f)
-    return {}
-
 
 def main() -> None:
+    # флаги при запуске, задаем значения по умолчанию
     parser = argparse.ArgumentParser(
         description="Diffusion Pipeline - Text-to-Image Generation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -41,11 +33,11 @@ Examples:
         default="stabilityai/stable-diffusion-xl-base-1.0")
     parser.add_argument("--save_intermediates", action="store_true")
     parser.add_argument("--intermediates_interval", type=int, default=5)
-    parser.add_argument("--config", type=str, default="config/default.yaml")
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
+    # настройка логирования
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -58,7 +50,7 @@ Examples:
     print("=" * 60)
     print(f"  Prompt:    {args.prompt}")
     print(f"  Negative:  {args.negative_prompt}")
-    print(f"  Solver:    Euler ODE (1st order)")
+    print(f"  Solver:    Euler (1st order)")
     print(f"  Steps:     {args.steps}")
     print(f"  Guidance:  {args.guidance}")
     print(f"  Size:      {args.width}x{args.height}")
@@ -66,6 +58,8 @@ Examples:
     print(f"  Model:     {args.model}")
     print("=" * 60)
 
+    # если seed не задан - берём случайный и сразу печатаем,
+    # чтобы можно было воспроизвести результат повторным запуском
     if args.seed is None:
         import random
         args.seed = random.randint(0, 2**32 - 1)
@@ -73,6 +67,7 @@ Examples:
 
     start_time = time.time()
 
+    # тяжёлый импорт (torch, transformers, diffusers) откладываем
     from src.pipeline.diffusion_pipeline import DiffusionPipeline
 
     print("\nInitializing pipeline...")
@@ -84,6 +79,7 @@ Examples:
         guidance_scale=args.guidance,
     )
 
+    # основной вызов - весь обратный процесс и цикл эйлера крутятся внутри generate()
     print("\nGenerating image...")
     image, intermediates = pipeline.generate(
         prompt=args.prompt,
@@ -101,11 +97,13 @@ Examples:
         image=image,
         output_dir=args.output,
         prompt=args.prompt,
-        solver="euler_ode",
+        solver="euler",
         steps=args.steps,
         seed=args.seed,
     )
 
+    # промежуточные шаги (если запрошены) складываем отдельной папкой,
+    # имена с нулями слева - чтобы файлы правильно сортировались по порядку шагов
     if intermediates:
         intermediates_dir = os.path.join(args.output, "intermediates")
         os.makedirs(intermediates_dir, exist_ok=True)
@@ -120,11 +118,8 @@ Examples:
     print("Generation Complete!")
     print(f"  Output:    {filepath}")
     print(f"  Time:      {elapsed:.1f}s")
-    print(f"  Solver:    Euler ODE ({args.steps} steps)")
-    if hasattr(pipeline.solver, 'total_nfe'):
-        print(f"  Total NFE: {pipeline.solver.total_nfe}")
+    print(f"  Solver:    Euler ({args.steps} steps)")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     main()

@@ -79,7 +79,6 @@ python3 -m pytest tests/ -v
 ```
 ├── generate.py              # CLI-генерация
 ├── bridge.py                # Мост Python↔Electron
-├── config/default.yaml      # Конфигурация
 ├── app/                     # Десктопное приложение (Electron + React + TypeScript)
 │   ├── electron/            # Main process, preload
 │   └── src/                 # React-компоненты, стили, типы

@@ -1,5 +1,5 @@
-from .euler_solver import EulerODESolver
+from .euler_solver import EulerSolver
 
 __all__ = [
-    "EulerODESolver",
+    "EulerSolver",
 ]
