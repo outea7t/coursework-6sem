@@ -1,3 +1,5 @@
+// пузырь одного сообщения пользователя (текст промпта)
+
 import type { UserMessage } from "../types";
 
 interface ChatMessageProps {

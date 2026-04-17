@@ -37,7 +37,7 @@ class ScaledLinearScheduler:
         sqrt_beta = self.sqrt_beta_min + t * (self.sqrt_beta_max - self.sqrt_beta_min)
         return self.num_train_timesteps * sqrt_beta ** 2
 
-    # накопленное значение α с начала до момента t - главная величина
+    # накопленное значение alpha с начала до момента t - главная величина
     #
     # между точками заранее посчитанной дискретной таблицы. непрерывная
     def alpha_bar(self, t: torch.Tensor) -> torch.Tensor:
@@ -55,7 +55,7 @@ class ScaledLinearScheduler:
         ac = self.alphas_cumprod
         return ac[idx_low] * (1.0 - frac) + ac[idx_high] * frac
 
-    # дискретный тензор из 1000 β, по одной на каждый шаг.
+    # тензор из 1000 beta, по одной на каждый шаг.
     # считается один раз при первом обращении, дальше кэш
     @property
     def betas(self) -> torch.Tensor:
@@ -63,24 +63,23 @@ class ScaledLinearScheduler:
             self._betas = self._compute_discrete_betas()
         return self._betas
 
-    # α_t = 1 - β_t - доля сигнала, которая сохраняется за один шаг
+    # alpha_t = 1 - beta_t - доля сигнала, которая сохраняется за один шаг
     @property
     def alphas(self) -> torch.Tensor:
         if self._alphas is None:
             self._alphas = 1.0 - self.betas
         return self._alphas
 
-    # ᾱ_t = α_1 · α_2 · ... · α_t - накопленное сохранение сигнала с начала.
+    # alpha_bar_t = alpha_1 · alpha_2 · ... · alpha_t - накопленное сохранение сигнала с начала.
     # именно эту таблицу использует alpha_bar(t) как опорные точки.
-    # torch.cumprod делает накопленное произведение одной строкой
     @property
     def alphas_cumprod(self) -> torch.Tensor:
         if self._alphas_cumprod is None:
             self._alphas_cumprod = torch.cumprod(self.alphas, dim=0)
         return self._alphas_cumprod
 
-    # генерация дискретной таблицы β-шек под scaled linear:
-    # 1000 равномерных точек в пространстве √β, потом возведение в квадрат
+    # генерация таблицы beta :
+    # 1000 равномерных точек, потом возведение в квадрат
     def _compute_discrete_betas(self) -> torch.Tensor:
         sqrt_betas = torch.linspace(
             self.sqrt_beta_min,
@@ -90,13 +89,13 @@ class ScaledLinearScheduler:
         )
         return sqrt_betas ** 2
 
-    # σ(t) = √(1 - ᾱ(t)) - уровень шума в момент t.
-    # при t≈0: σ≈0 (чистая картинка), при t=1: σ≈1 (чистый шум).
-    # это тот самый σ, что фигурирует в шаге эйлера в солвере
+    # sigma(t) - уровень шума в момент t.
+    # при t=0: sigma=0 (чистая картинка), при t=1: sigma=1 (чистый шум).
+    # это тот самый sigma, что фигурирует в шаге эйлера в солвере
     def sigma(self, t: torch.Tensor) -> torch.Tensor:
         return torch.sqrt(1.0 - self.alpha_bar(t))
 
-    # отношение сигнал/шум в момент t: ᾱ / (1-ᾱ).
+    # отношение сигнал/шум в момент t: alpha_bar / (1-alpha_bar).
     # при t=0 стремится к бесконечности (чистая картинка), при t=1 к нулю
     def snr(self, t: torch.Tensor) -> torch.Tensor:
         ab = self.alpha_bar(t)

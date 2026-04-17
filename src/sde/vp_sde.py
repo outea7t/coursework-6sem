@@ -22,7 +22,6 @@ class VPSDE:
         self.t_max = t_max
 
     def drift(self, x: Tensor, t: Tensor) -> Tensor:
-        # f(x, t) = -0.5 * beta(t) * x
         beta_t = self.scheduler.beta(t)
         while beta_t.dim() < x.dim():
             beta_t = beta_t.unsqueeze(-1)

@@ -1,3 +1,5 @@
+// общие типы приложения: настройки, сообщения чата, события моста, api window.bridge
+
 export interface Settings {
   steps: number;
   guidance: number;

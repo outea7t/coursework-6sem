@@ -1,3 +1,6 @@
+// main-процесс electron: создаёт окно, запускает python-мост как дочерний процесс,
+// перегоняет json-события из stdout моста в окно React через ipc
+
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");

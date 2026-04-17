@@ -1,3 +1,6 @@
+// корневой компонент: хранит состояние приложения, обрабатывает события
+// моста (прогресс загрузки, ход генерации) и рендерит чат + модалку настроек
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import Chat from "./components/Chat";
 import SettingsModal from "./components/SettingsModal";

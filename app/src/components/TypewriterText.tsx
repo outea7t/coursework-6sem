@@ -1,3 +1,5 @@
+// анимация "печатной машинки" - текст появляется посимвольно
+
 import { useState, useEffect } from "react";
 
 interface TypewriterTextProps {

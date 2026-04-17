@@ -1,3 +1,5 @@
+// карточка одной генерации: превью-картинка + прогресс-бар или сообщение об ошибке
+
 import TypewriterText from "./TypewriterText";
 import type { GenerationMessage } from "../types";
 

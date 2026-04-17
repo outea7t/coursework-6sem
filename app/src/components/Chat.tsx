@@ -1,3 +1,5 @@
+// основной чат: список сообщений + поле ввода промпта с автоскроллом и автосайзом
+
 import { useRef, useEffect, useState, type KeyboardEvent, type ChangeEvent } from "react";
 import ChatMessage from "./ChatMessage";
 import GenerationProgress from "./GenerationProgress";

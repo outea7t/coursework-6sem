@@ -1,3 +1,6 @@
+// preload-скрипт: пробрасывает безопасный api моста в window.bridge,
+// чтобы React мог звать generate/ping и подписываться на события
+
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("bridge", {

@@ -1,3 +1,5 @@
+// модалка настроек: шаги, guidance, размер, seed, негативный промпт с валидацией
+
 import { useState, useEffect, useCallback } from "react";
 import type { Settings } from "../types";
 
