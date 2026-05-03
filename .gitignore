@@ -27,7 +27,7 @@ tests/
 .pytest_cache/
 
 # Models (large pretrained weights, downloaded at runtime)
-models/
+/models/
 *.safetensors
 *.bin
 *.ckpt
