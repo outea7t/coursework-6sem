@@ -4,7 +4,7 @@
   "description": "Chat interface for Diffusion Pipeline",
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "dev": "concurrently -k \"vite\" \"wait-on http-get://localhost:5173 && electron .\"",
     "build": "vite build",
     "start": "vite build && electron ."
   },
@@ -17,7 +17,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.0",
     "concurrently": "^9.0.0",
-    "electron": "^33.0.0",
+    "electron": "^33.4.11",
     "typescript": "^5.9.3",
     "vite": "^6.0.0",
     "wait-on": "^8.0.0"

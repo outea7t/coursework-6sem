@@ -42,15 +42,16 @@ function createWindow() {
 }
 
 function startBridge() {
-  bridge = spawn("python3", [BRIDGE_PATH], {
+  bridge = spawn(process.platform === "win32" ? "python" : "python3", [BRIDGE_PATH], {
     cwd: PROJECT_ROOT,
     stdio: ["pipe", "pipe", "pipe"],
   });
 
+  bridge.stdout.setEncoding("utf8");
   let buffer = "";
 
   bridge.stdout.on("data", (data) => {
-    buffer += data.toString();
+    buffer += data;
     const lines = buffer.split("\n");
     buffer = lines.pop(); // keep incomplete last line
 
