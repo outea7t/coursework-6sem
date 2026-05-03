@@ -21,6 +21,12 @@ import traceback
 # использовать столько памяти, сколько надо
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
+# на windows stdout может использовать системную кодировку (cp1251),
+# а нам нужен utf-8 для корректной передачи кириллицы в electron
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # bridge может быть запущен из директории app, поэтому добавляем
 # корень проекта в пути поиска модулей. иначе импорты
 # вида `from src.pipeline...` не сработают
@@ -54,10 +60,10 @@ class LoadingProgressHandler(logging.Handler):
 
     # шаблон в логе -> (процент, подпись для интерфейса)
     STAGES = {
-        "Loading CLIP-L": (10, "Загрузка CLIP-L..."),
-        "Loading OpenCLIP-G": (30, "Загрузка OpenCLIP-G..."),
-        "Loading VAE": (55, "Загрузка VAE..."),
-        "Loading U-Net": (75, "Загрузка U-Net..."),
+        "Loading CLIP-L": (10, "Загрузка CLIP-L... (~250 МБ)"),
+        "Loading OpenCLIP-G": (30, "Загрузка OpenCLIP-G... (~1.4 ГБ)"),
+        "Loading VAE": (55, "Загрузка VAE... (~160 МБ)"),
+        "Loading U-Net": (75, "Загрузка U-Net... (~5.1 ГБ)"),
         "All SDXL components loaded": (95, "Финализация..."),
     }
 
